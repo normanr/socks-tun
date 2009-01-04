@@ -16,7 +16,7 @@ namespace SocksTun
 			var p2 = new SinglePump(s2, s1, wh);
 			p1.Pump();
 			p2.Pump();
-			while (s1.Connected && s2.Connected && !p1.Error && !p2.Error)
+			while (s1.Connected && s2.Connected && !p1.finished && !p2.finished)
 			{
 				wh.WaitOne(10000);
 			}
@@ -27,33 +27,38 @@ namespace SocksTun
 			const int bufferSize = 10000;
 			private readonly Socket s1;
 			private readonly Socket s2;
-			private readonly EventWaitHandle errorEvent;
+			private readonly EventWaitHandle finishedEvent;
 			private readonly byte[] buf = new byte[bufferSize];
-			public bool Error { get; private set; }
+			public bool finished { get; private set; }
 
-			public SinglePump(Socket s1, Socket s2, EventWaitHandle errorEvent)
+			public SinglePump(Socket s1, Socket s2, EventWaitHandle finishedEvent)
 			{
 				this.s1 = s1;
 				this.s2 = s2;
-				this.errorEvent = errorEvent;
+				this.finishedEvent = finishedEvent;
 			}
 
 			public void Pump()
 			{
 				try
 				{
-					if (!s1.Connected || !s2.Connected) return;
+					if (!s1.Connected || !s2.Connected)
+					{
+						finished = true;
+						finishedEvent.Set();
+						return;
+					}
 					s1.BeginReceive(buf, 0, bufferSize, SocketFlags.None, ReceiveCallback, null);
 				}
 				catch (ObjectDisposedException)
 				{
-					Error = true;
-					errorEvent.Set();
+					finished = true;
+					finishedEvent.Set();
 				}
 				catch (SocketException)
 				{
-					Error = true;
-					errorEvent.Set();
+					finished = true;
+					finishedEvent.Set();
 				}
 			}
 
@@ -61,7 +66,12 @@ namespace SocksTun
 			{
 				try
 				{
-					if (!s1.Connected || !s2.Connected) return;
+					if (!s1.Connected || !s2.Connected)
+					{
+						finished = true;
+						finishedEvent.Set();
+						return;
+					}
 					var bytesReceived = s1.EndReceive(ar);
 					if (bytesReceived > 0)
 					{
@@ -70,19 +80,19 @@ namespace SocksTun
 					}
 					else
 					{
-						Error = true;
-						errorEvent.Set();
+						finished = true;
+						finishedEvent.Set();
 					}
 				}
 				catch (ObjectDisposedException)
 				{
-					Error = true;
-					errorEvent.Set();
+					finished = true;
+					finishedEvent.Set();
 				}
 				catch (SocketException)
 				{
-					Error = true;
-					errorEvent.Set();
+					finished = true;
+					finishedEvent.Set();
 				}
 			}
 		}

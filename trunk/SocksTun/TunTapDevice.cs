@@ -35,6 +35,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -58,32 +59,38 @@ namespace SocksTun
 			return Win32Api.CTL_CODE(Win32Api.FILE_DEVICE_UNKNOWN, request, method, Win32Api.FILE_ANY_ACCESS);
 		}
 
-		public static readonly uint TAP_IOCTL_GET_MAC = TAP_CONTROL_CODE(1, Win32Api.METHOD_BUFFERED);
-		public static readonly uint TAP_IOCTL_GET_VERSION = TAP_CONTROL_CODE(2, Win32Api.METHOD_BUFFERED);
-		public static readonly uint TAP_IOCTL_GET_MTU = TAP_CONTROL_CODE(3, Win32Api.METHOD_BUFFERED);
-		public static readonly uint TAP_IOCTL_GET_INFO = TAP_CONTROL_CODE(4, Win32Api.METHOD_BUFFERED);
-		public static readonly uint TAP_IOCTL_CONFIG_POINT_TO_POINT = TAP_CONTROL_CODE(5, Win32Api.METHOD_BUFFERED);
-		public static readonly uint TAP_IOCTL_SET_MEDIA_STATUS = TAP_CONTROL_CODE(6, Win32Api.METHOD_BUFFERED);
-		public static readonly uint TAP_IOCTL_CONFIG_DHCP_MASQ = TAP_CONTROL_CODE(7, Win32Api.METHOD_BUFFERED);
-		public static readonly uint TAP_IOCTL_GET_LOG_LINE = TAP_CONTROL_CODE(8, Win32Api.METHOD_BUFFERED);
-		public static readonly uint TAP_IOCTL_CONFIG_DHCP_SET_OPT = TAP_CONTROL_CODE(9, Win32Api.METHOD_BUFFERED);
-		public static readonly uint TAP_IOCTL_CONFIG_TUN = TAP_CONTROL_CODE(10, Win32Api.METHOD_BUFFERED);
+		// Present in 8.1
+
+		private static readonly uint TAP_IOCTL_GET_MAC = TAP_CONTROL_CODE(1, Win32Api.METHOD_BUFFERED);
+		private static readonly uint TAP_IOCTL_GET_VERSION = TAP_CONTROL_CODE(2, Win32Api.METHOD_BUFFERED);
+		private static readonly uint TAP_IOCTL_GET_MTU = TAP_CONTROL_CODE(3, Win32Api.METHOD_BUFFERED);
+		private static readonly uint TAP_IOCTL_GET_INFO = TAP_CONTROL_CODE(4, Win32Api.METHOD_BUFFERED);
+		private static readonly uint TAP_IOCTL_CONFIG_POINT_TO_POINT = TAP_CONTROL_CODE(5, Win32Api.METHOD_BUFFERED);
+		private static readonly uint TAP_IOCTL_SET_MEDIA_STATUS = TAP_CONTROL_CODE(6, Win32Api.METHOD_BUFFERED);
+		private static readonly uint TAP_IOCTL_CONFIG_DHCP_MASQ = TAP_CONTROL_CODE(7, Win32Api.METHOD_BUFFERED);
+		private static readonly uint TAP_IOCTL_GET_LOG_LINE = TAP_CONTROL_CODE(8, Win32Api.METHOD_BUFFERED);
+		private static readonly uint TAP_IOCTL_CONFIG_DHCP_SET_OPT = TAP_CONTROL_CODE(9, Win32Api.METHOD_BUFFERED);
+
+		// Added in 8.2
+
+		/* obsoletes TAP_IOCTL_CONFIG_POINT_TO_POINT */
+		private static readonly uint TAP_IOCTL_CONFIG_TUN = TAP_CONTROL_CODE(10, Win32Api.METHOD_BUFFERED);
 
 		//=================
 		// Registry keys
 		//=================
 
-		public const string ADAPTER_KEY = @"SYSTEM\CurrentControlSet\Control\Class\{4D36E972-E325-11CE-BFC1-08002BE10318}";
-		public const string NETWORK_CONNECTIONS_KEY = @"SYSTEM\CurrentControlSet\Control\Network\{4D36E972-E325-11CE-BFC1-08002BE10318}";
+		private const string ADAPTER_KEY = @"SYSTEM\CurrentControlSet\Control\Class\{4D36E972-E325-11CE-BFC1-08002BE10318}";
+		private const string NETWORK_CONNECTIONS_KEY = @"SYSTEM\CurrentControlSet\Control\Network\{4D36E972-E325-11CE-BFC1-08002BE10318}";
 
 		//======================
 		// Filesystem prefixes
 		//======================
 
-		public const string USERMODEDEVICEDIR = @"\\.\Global\";
-		public const string SYSDEVICEDIR = @"\Device\";
-		public const string USERDEVICEDIR = @"\DosDevices\Global\";
-		public const string TAPSUFFIX = ".tap";
+		private const string USERMODEDEVICEDIR = @"\\.\Global\";
+		private const string SYSDEVICEDIR = @"\Device\";
+		private const string USERDEVICEDIR = @"\DosDevices\Global\";
+		private const string TAPSUFFIX = ".tap";
 
 		//=========================================================
 		// TAP_COMPONENT_ID -- This string defines the TAP driver
@@ -91,7 +98,7 @@ namespace SocksTun
 		// simultaneously.
 		//=========================================================
 
-		public const string TAP_COMPONENT_ID = "tap0801";
+		private const string TAP_COMPONENT_ID = "tap0801";
 
 		//=========================================================
 		// .Net implementation - based on code from
@@ -99,9 +106,17 @@ namespace SocksTun
 		//=========================================================
 
 		private readonly string devGuid;
-		public SafeFileHandle Handle { get; private set; }
+		public FileStream Stream { get; private set; }
 
-		public string HumanName
+		public Guid Guid
+		{
+			get
+			{
+				return new Guid(devGuid);
+			}
+		}
+
+		public string Name
 		{
 			get
 			{
@@ -112,40 +127,67 @@ namespace SocksTun
 		public TunTapDevice(string deviceName)
 		{
 			devGuid = GetDeviceGuid(deviceName);
-			Handle = new SafeFileHandle(Win32Api.CreateFile(USERMODEDEVICEDIR + devGuid + TAPSUFFIX, FileAccess.ReadWrite,
-				FileShare.ReadWrite, 0, FileMode.Open, Win32Api.FILE_ATTRIBUTE_SYSTEM | Win32Api.FILE_FLAG_OVERLAPPED, IntPtr.Zero), true);
+			Stream = new FileStream(
+				new SafeFileHandle(
+					Win32Api.CreateFile(
+						USERMODEDEVICEDIR + devGuid + TAPSUFFIX,
+						FileAccess.ReadWrite,
+						FileShare.ReadWrite,
+						0 /* securityAttributes */,
+						FileMode.Open,
+						Win32Api.FILE_ATTRIBUTE_SYSTEM | Win32Api.FILE_FLAG_OVERLAPPED,
+						IntPtr.Zero),
+					true),
+				FileAccess.ReadWrite,
+				0x1000,
+				true);
 		}
 
-		public bool GetMtu(ref int mtu)
+		private struct GetMacResult
 		{
-			return DeviceIoControl(TAP_IOCTL_GET_MTU, ref mtu);
+			[MarshalAs(UnmanagedType.ByValArray, SizeConst = 6)]
+			public byte[] mac;
 		}
 
-		public struct GetInfoData
+		public string GetMac()
+		{
+			return DeviceIoControl<GetMacResult>(TAP_IOCTL_GET_MAC, null).mac.Select(b => b.ToString("X2")).Aggregate((s1, s2) => s1 + "-" + s2);
+		}
+
+		private struct GetVersionResult
+		{
+			[MarshalAs(UnmanagedType.ByValArray, SizeConst = 3)]
+			public int[] version;
+		}
+
+		public Version GetVersion()
+		{
+			var data = DeviceIoControl<GetVersionResult>(TAP_IOCTL_GET_VERSION, null);
+			return new Version(data.version[0], data.version[1], data.version[2]);
+		}
+
+		public int GetMtu()
+		{
+			return DeviceIoControl<int>(TAP_IOCTL_GET_MTU, null);
+		}
+
+		private struct GetInfoResult
 		{
 			[MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)]
 			public string info;
 		}
 
-		public bool GetInfo(ref string info)
+		public string GetInfo()
 		{
-			var data = new GetInfoData();
-			try
-			{
-				return DeviceIoControl(TAP_IOCTL_GET_INFO, ref data);
-			}
-			finally
-			{
-				info = data.info;
-			}
+			return DeviceIoControl<GetInfoResult>(TAP_IOCTL_GET_INFO, null).info;
 		}
 
-		public bool SetMediaStatus(bool state)
+		public byte SetMediaStatus(bool state)
 		{
-			return DeviceIoControl(TAP_IOCTL_SET_MEDIA_STATUS, ref state);
+			return DeviceIoControl<byte>(TAP_IOCTL_SET_MEDIA_STATUS, state);
 		}
 
-		public struct ConfigTunData
+		private struct ConfigTunRequest
 		{
 			[MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
 			public byte[] localIP;
@@ -155,21 +197,33 @@ namespace SocksTun
 			public byte[] remoteNetmask;
 		}
 
-		public bool ConfigTun(IPAddress localIP, IPAddress remoteNetwork, IPAddress remoteNetmask)
+		public byte ConfigPointToPoint(IPAddress localIP, IPAddress remoteNetwork)
+		{
+			Debug.Assert(localIP.AddressFamily == AddressFamily.InterNetwork);
+			Debug.Assert(remoteNetwork.AddressFamily == AddressFamily.InterNetwork);
+			var data = new ConfigTunRequest
+			{
+				localIP = localIP.GetAddressBytes(),
+				remoteNetwork = remoteNetwork.GetAddressBytes(),
+			};
+			return DeviceIoControl<byte>(TAP_IOCTL_CONFIG_POINT_TO_POINT, data);
+		}
+
+		public byte ConfigTun(IPAddress localIP, IPAddress remoteNetwork, IPAddress remoteNetmask)
 		{
 			Debug.Assert(localIP.AddressFamily == AddressFamily.InterNetwork);
 			Debug.Assert(remoteNetwork.AddressFamily == AddressFamily.InterNetwork);
 			Debug.Assert(remoteNetmask.AddressFamily == AddressFamily.InterNetwork);
-			var data = new ConfigTunData
+			var data = new ConfigTunRequest
 			{
 				localIP = localIP.GetAddressBytes(),
 				remoteNetwork = remoteNetwork.GetAddressBytes(),
 				remoteNetmask = remoteNetmask.GetAddressBytes(),
 			};
-			return DeviceIoControl(TAP_IOCTL_CONFIG_TUN, ref data);
+			return DeviceIoControl<byte>(TAP_IOCTL_CONFIG_TUN, data);
 		}
 
-		public struct ConfigDhcpMasqData
+		private struct ConfigDhcpMasqRequest
 		{
 			[MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
 			public byte[] localIP;
@@ -180,42 +234,55 @@ namespace SocksTun
 			public int dhcpLeaseTime;
 		}
 
-		public bool ConfigDhcpMasq(IPAddress localIP, IPAddress adapterNetmask, IPAddress dhcpServerAddr, int dhcpLeaseTime)
+		public byte ConfigDhcpMasq(IPAddress localIP, IPAddress adapterNetmask, IPAddress dhcpServerAddr, int dhcpLeaseTime)
 		{
 			Debug.Assert(localIP.AddressFamily == AddressFamily.InterNetwork);
 			Debug.Assert(adapterNetmask.AddressFamily == AddressFamily.InterNetwork);
 			Debug.Assert(dhcpServerAddr.AddressFamily == AddressFamily.InterNetwork);
 			Debug.Assert(dhcpLeaseTime > 0);
-			var data = new ConfigDhcpMasqData
+			var data = new ConfigDhcpMasqRequest
 			{
 				localIP = localIP.GetAddressBytes(),
 				adapterNetmask = adapterNetmask.GetAddressBytes(),
 				dhcpServerAddr = dhcpServerAddr.GetAddressBytes(),
 				dhcpLeaseTime = dhcpLeaseTime,
 			};
-			return DeviceIoControl(TAP_IOCTL_CONFIG_DHCP_MASQ, ref data);
+			return DeviceIoControl<byte>(TAP_IOCTL_CONFIG_DHCP_MASQ, data);
 		}
 
-		private bool DeviceIoControl<T>(uint ioctl, ref T data)
+		private struct GetLogLineResult
 		{
-			var cbdata = Marshal.SizeOf(data);
-			var pdata = Marshal.AllocHGlobal(cbdata);
+			[MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)]
+			public string logLine;
+		}
+
+		public string GetLogLine()
+		{
+			var data = new GetLogLineResult();
+			DeviceIoControl<GetLogLineResult>(TAP_IOCTL_GET_LOG_LINE, null);
+			return data.logLine;
+		}
+
+		private T DeviceIoControl<T>(uint ioctl, object data)
+		{
+			var nInBufferSize = data != null ? Marshal.SizeOf(data) : 0;
+			var pInBuffer = Marshal.AllocHGlobal(nInBufferSize);
+			var nOutBufferSize = Marshal.SizeOf(typeof(T));
+			var pOutBuffer = Marshal.AllocHGlobal(nOutBufferSize);
 			try
 			{
-				Marshal.StructureToPtr(data, pdata, true);
-				try
-				{
-					int len;
-					return Win32Api.DeviceIoControl(Handle, ioctl, pdata, (uint) cbdata, pdata, (uint) cbdata, out len, IntPtr.Zero);
-				}
-				finally
-				{
-					data = (T)Marshal.PtrToStructure(pdata, typeof(T));
-				}
+				if (data != null)
+					Marshal.StructureToPtr(data, pInBuffer, true);
+				int len;
+				if (!Win32Api.DeviceIoControl(Stream.SafeFileHandle, ioctl, pInBuffer, (uint)nInBufferSize, pOutBuffer, (uint)nOutBufferSize, out len, IntPtr.Zero))
+					throw new Win32Exception(Marshal.GetLastWin32Error());
+				Debug.Assert(nOutBufferSize == len);
+				return (T)Marshal.PtrToStructure(pOutBuffer, typeof(T));
 			}
 			finally
 			{
-				Marshal.FreeHGlobal(pdata);
+				Marshal.FreeHGlobal(pInBuffer);
+				Marshal.FreeHGlobal(pOutBuffer);
 			}
 		}
 
