@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Net.Sockets;
 using System.Text;
 
@@ -11,16 +12,18 @@ namespace SocksTun
 	{
 		private readonly TcpClient client;
 		private readonly DebugWriter debug;
+		private readonly ConnectionTracker connectionTracker;
 		private readonly TunTapDevice tunTapDevice;
 		private readonly NetworkStream stream;
 		private readonly byte[] buffer = new byte[0x1000];
 
 		private bool connected;
 
-		public LogConnection(TcpClient client, DebugWriter debug, TunTapDevice tunTapDevice)
+		public LogConnection(TcpClient client, DebugWriter debug, ConnectionTracker connectionTracker, TunTapDevice tunTapDevice)
 		{
 			this.client = client;
 			this.debug = debug;
+			this.connectionTracker = connectionTracker;
 			this.tunTapDevice = tunTapDevice;
 			stream = client.GetStream();
 		}
@@ -48,7 +51,17 @@ namespace SocksTun
 
 			stream.BeginRead(buffer, 0, 0x1000, ReadComplete, null);
 
-			debug.Log(1, "{0} connected to log", client.Client.RemoteEndPoint);
+			var localEndPoint = (IPEndPoint)client.Client.LocalEndPoint;
+			var remoteEndPoint = (IPEndPoint)client.Client.RemoteEndPoint;
+
+			var tcpConnection = connectionTracker.GetTCPConnection(remoteEndPoint, localEndPoint);
+
+			var logMessage = string.Format("{0}[{1}] {2} {{0}} log",
+				tcpConnection != null ? tcpConnection.ProcessName : "unknown",
+				tcpConnection != null ? tcpConnection.PID : 0,
+				client.Client.RemoteEndPoint);
+
+			debug.Log(1, logMessage, "connected to");
 			debug.Log(1, tunTapDevice.GetInfo());
 
 			try
@@ -68,6 +81,8 @@ namespace SocksTun
 			}
 
 			writer.Close();
+
+			debug.Log(1, logMessage, "disconnected from");
 		}
 	}
 }

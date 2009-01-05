@@ -54,6 +54,10 @@
     <Compile Include="BlockingQueue.cs" />
     <Compile Include="ConnectionTracker.cs" />
     <Compile Include="DebugWriter.cs" />
+    <Compile Include="IpHlpApi\IPHlpAPI32.cs" />
+    <Compile Include="IpHlpApi\TCPUDPConnection.cs" />
+    <Compile Include="IpHlpApi\TCPUDPConnections.cs" />
+    <Compile Include="IpHlpApi\Utils.cs" />
     <Compile Include="LogConnection.cs" />
     <Compile Include="Natter.cs" />
     <Compile Include="ProjectInstaller.cs">

@@ -97,9 +97,17 @@ namespace SocksTun
 
 		private void NewTransparentSocksConnection(IAsyncResult ar)
 		{
-			var client = transparentSocksServer.EndAcceptSocket(ar);
+			Socket client = null;
+			try
+			{
+				client = transparentSocksServer.EndAcceptSocket(ar);
+			}
+			catch (SystemException)
+			{
+			}
 			transparentSocksServer.BeginAcceptSocket(NewTransparentSocksConnection, null);
 
+			if (client == null) return;
 			var connection = new TransparentSocksConnection(client, debug, connectionTracker, ConfigureSocksProxy);
 			connection.Process();
 		}
@@ -113,10 +121,16 @@ namespace SocksTun
 
 		private void NewLogConnection(IAsyncResult ar)
 		{
-			var client = logServer.EndAcceptTcpClient(ar);
+			try
+			{
+				var client = logServer.EndAcceptTcpClient(ar);
 
-			var connection = new LogConnection(client, debug, tunTapDevice);
-			connection.Process();
+				var connection = new LogConnection(client, debug, connectionTracker, tunTapDevice);
+				connection.Process();
+			}
+			catch (SystemException)
+			{
+			}
 
 			logServer.BeginAcceptTcpClient(NewLogConnection, null);
 		}
