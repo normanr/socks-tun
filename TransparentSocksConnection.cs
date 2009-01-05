@@ -64,7 +64,11 @@ namespace SocksTun
 			}
 			else
 			{
-				debug.Log(1, "{0} has no mapping", remoteEndPoint);
+				var tcpConnection = connectionTracker.GetTCPConnection(remoteEndPoint, localEndPoint);
+				debug.Log(1, "{0}[{1}] {2} has no mapping",
+					tcpConnection != null ? tcpConnection.ProcessName : "unknown",
+					tcpConnection != null ? tcpConnection.PID : 0,
+					remoteEndPoint);
 				client.Send(Encoding.ASCII.GetBytes("No mapping\r\n"));
 			}
 
