@@ -37,6 +37,9 @@ namespace SocksTun
 					case "/u":
 						ManagedInstallerClass.InstallHelper(new[] { "/uninstall", Assembly.GetEntryAssembly().Location });
 						return;
+					default:
+						Console.WriteLine("Unknown command line parameters: " + string.Join(" ", args));
+						return;
 				}
 			}
 			ServiceBase[] ServicesToRun;

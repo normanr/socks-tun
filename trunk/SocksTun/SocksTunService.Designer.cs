@@ -28,20 +28,6 @@
 		/// </summary>
 		private void InitializeComponent()
 		{
-			this.components = new System.ComponentModel.Container();
-			this.backgroundWorker1 = new System.ComponentModel.BackgroundWorker();
-			this.mappingCleanupTimer = new System.Windows.Forms.Timer(this.components);
-			// 
-			// backgroundWorker1
-			// 
-			this.backgroundWorker1.WorkerSupportsCancellation = true;
-			this.backgroundWorker1.DoWork += new System.ComponentModel.DoWorkEventHandler(this.backgroundWorker1_DoWork);
-			this.backgroundWorker1.RunWorkerCompleted += new System.ComponentModel.RunWorkerCompletedEventHandler(this.backgroundWorker1_RunWorkerCompleted);
-			// 
-			// mappingCleanupTimer
-			// 
-			this.mappingCleanupTimer.Interval = 10000;
-			this.mappingCleanupTimer.Tick += new System.EventHandler(this.mappingCleanupTimer_Tick);
 			// 
 			// SocksTunService
 			// 
@@ -51,7 +37,5 @@
 
 		#endregion
 
-		private System.ComponentModel.BackgroundWorker backgroundWorker1;
-		private System.Windows.Forms.Timer mappingCleanupTimer;
 	}
 }
