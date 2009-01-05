@@ -29,34 +29,38 @@ namespace SocksTun
 		{
 			var localEndPoint = (IPEndPoint)client.LocalEndPoint;
 			var remoteEndPoint = (IPEndPoint)client.RemoteEndPoint;
-			var key = new KeyValuePair<IPAddress, int>(remoteEndPoint.Address, remoteEndPoint.Port);
 
-			if (connectionTracker.mappings.ContainsKey(key))
+			if (connectionTracker.mappings.ContainsKey(remoteEndPoint))
 			{
-				var remotePort = connectionTracker.mappings[key];
-				var requestedEndPoint = new IPEndPoint(remoteEndPoint.Address, remotePort);
+				var initialEndPoint = new IPEndPoint(localEndPoint.Address, remoteEndPoint.Port);
+				var requestedEndPoint = new IPEndPoint(remoteEndPoint.Address, connectionTracker.mappings[remoteEndPoint]);
+				var tcpConnection = connectionTracker.GetTCPConnection(initialEndPoint, requestedEndPoint);
 
+				var logMessage = string.Format("{0}[{1}] {2} {{0}} connection to {3}",
+					tcpConnection != null ? tcpConnection.ProcessName : "unknown",
+					tcpConnection != null ? tcpConnection.PID : 0,
+					initialEndPoint, requestedEndPoint);
 				try
 				{
 					var proxy = new ProxySocket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
 					configureProxySocket(proxy, requestedEndPoint);
 
-					debug.Log(1, "{0}:{1} requested connection to {2} via {3}", localEndPoint.Address, remoteEndPoint.Port, requestedEndPoint, proxy.ProxyEndPoint);
+					debug.Log(1, logMessage + " via {1}", "requested", proxy.ProxyEndPoint);
 
 					proxy.Connect(requestedEndPoint);
 
 					SocketPump.Pump(client, proxy);
 
 					proxy.Close();
-					debug.Log(1, "{0}:{1} closing connection to {2}", localEndPoint.Address, remoteEndPoint.Port, requestedEndPoint);
+					debug.Log(1, logMessage, "closing");
 				}
 				catch (Exception ex)
 				{
 					client.Send(Encoding.ASCII.GetBytes(ex.ToString()));
-					debug.Log(1, "{0}:{1} failed connection to {2}: {3}", localEndPoint.Address, remoteEndPoint.Port, requestedEndPoint, ex);
+					debug.Log(1, logMessage + ": {1}", "failed", ex);
 				}
 
-				connectionTracker.QueueForCleanUp(key);
+				connectionTracker.QueueForCleanUp(remoteEndPoint);
 			}
 			else
 			{

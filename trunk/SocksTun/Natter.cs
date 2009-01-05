@@ -65,16 +65,16 @@ namespace SocksTun
 
 							if (sourcePort != transparentSocksPort)
 							{
-								var key = new KeyValuePair<IPAddress, int>(destination, sourcePort);
-								if (!connectionTracker.mappings.ContainsKey(key))
-									connectionTracker.mappings[key] = destinationPort;
+								var endPoint = new IPEndPoint(destination, sourcePort);
+								if (!connectionTracker.mappings.ContainsKey(endPoint))
+									connectionTracker.mappings[endPoint] = destinationPort;
 								destinationPort = transparentSocksPort;
 							}
 							else
 							{
-								var key = new KeyValuePair<IPAddress, int>(destination, destinationPort);
-								if (connectionTracker.mappings.ContainsKey(key))
-									sourcePort = connectionTracker.mappings[key];
+								var endPoint = new IPEndPoint(destination, destinationPort);
+								if (connectionTracker.mappings.ContainsKey(endPoint))
+									sourcePort = connectionTracker.mappings[endPoint];
 							}
 							SetArray(buf, sourcePortOffset, BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)(sourcePort))));
 							SetArray(buf, destinationPortOffset, BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)(destinationPort))));

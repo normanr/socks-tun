@@ -4,15 +4,17 @@ using System.Linq;
 using System.Net;
 using System.Text;
 using System.Timers;
+using IpHlpApidotnet;
 
 namespace SocksTun
 {
 	class ConnectionTracker : IDisposable
 	{
-		public readonly Dictionary<KeyValuePair<IPAddress, int>, int> mappings = new Dictionary<KeyValuePair<IPAddress, int>, int>();
+		public readonly Dictionary<EndPoint, int> mappings = new Dictionary<EndPoint, int>();
 
 		private readonly Timer mappingCleanupTimer;
-		private readonly Queue<KeyValuePair<DateTime, KeyValuePair<IPAddress, int>>> mappingCleanUp = new Queue<KeyValuePair<DateTime, KeyValuePair<IPAddress, int>>>();
+		private readonly Queue<KeyValuePair<DateTime, EndPoint>> mappingCleanUp = new Queue<KeyValuePair<DateTime, EndPoint>>();
+		private readonly TCPUDPConnections tcpUdpConnections = new TCPUDPConnections { FetchTcpConnections = true };
 
 		public ConnectionTracker()
 		{
@@ -31,16 +33,22 @@ namespace SocksTun
 			lock (mappingCleanUp)
 				while (mappingCleanUp.Count > 0 && mappingCleanUp.Peek().Key < DateTime.Now)
 				{
-					var key = mappingCleanUp.Dequeue().Value;
-					if (mappings.ContainsKey(key))
-						mappings.Remove(key);
+					var endPoint = mappingCleanUp.Dequeue().Value;
+					if (mappings.ContainsKey(endPoint))
+						mappings.Remove(endPoint);
 				}
 		}
 
-		public void QueueForCleanUp(KeyValuePair<IPAddress, int> key)
+		public void QueueForCleanUp(EndPoint endPoint)
 		{
 			lock (mappingCleanUp)
-				mappingCleanUp.Enqueue(new KeyValuePair<DateTime, KeyValuePair<IPAddress, int>>(DateTime.Now.AddSeconds(30), key));
+				mappingCleanUp.Enqueue(new KeyValuePair<DateTime, EndPoint>(DateTime.Now.AddSeconds(30), endPoint));
+		}
+
+		public TCPUDPConnection GetTCPConnection(EndPoint localEndPoint, EndPoint remoteEndPoint)
+		{
+			tcpUdpConnections.Refresh();
+			return tcpUdpConnections.SingleOrDefault(c => c.Local.Equals(localEndPoint) && c.Remote.Equals(remoteEndPoint));
 		}
 	}
 }
