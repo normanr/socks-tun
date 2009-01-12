@@ -9,6 +9,7 @@ using System.ServiceProcess;
 using System.Text;
 using System.Threading;
 using Org.Mentalis.Network.ProxySocket;
+using SocksTun.Properties;
 
 namespace SocksTun
 {
@@ -22,11 +23,18 @@ namespace SocksTun
 
 		public void Run(string[] args)
 		{
+			Console.CancelKeyPress += Console_CancelKeyPress;
 			debug.Writer = Console.Out;
 			OnStart(args);
 			debug.Log(-1, "SocksTun running in foreground mode, press enter to exit");
 			Console.ReadLine();
+			debug.Log(-1, "Shutting down...");
 			OnStop();
+		}
+
+		void Console_CancelKeyPress(object sender, ConsoleCancelEventArgs e)
+		{
+			e.Cancel = true;
 		}
 
 		private readonly DebugWriter debug = new DebugWriter();
@@ -43,13 +51,13 @@ namespace SocksTun
 
 		protected override void OnStart(string[] args)
 		{
-			transparentSocksServer = new TcpListener(IPAddress.Any, 59000);
+			transparentSocksServer = new TcpListener(IPAddress.Any, Settings.Default.SocksPort);
 			transparentSocksServer.Server.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, 1);
 			transparentSocksServer.Start();
 			debug.Log(0, "TransparentSocksPort = " + ((IPEndPoint)transparentSocksServer.LocalEndpoint).Port);
 			transparentSocksServer.BeginAcceptSocket(NewTransparentSocksConnection, null);
 
-			logServer = new TcpListener(IPAddress.Loopback, 58000);
+			logServer = new TcpListener(IPAddress.Loopback, Settings.Default.LogPort);
 			logServer.Server.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, 1);
 			logServer.Start();
 			debug.Log(0, "LogPort = " + ((IPEndPoint) logServer.LocalEndpoint).Port);
@@ -62,14 +70,14 @@ namespace SocksTun
 			debug.Log(0, "Version = " + tunTapDevice.GetVersion());
 			debug.Log(0, "Mtu = " + tunTapDevice.GetMtu());
 
-			var localIP = IPAddress.Parse("10.3.0.1");
-			var remoteNetwork = IPAddress.Parse("0.0.0.0");
-			var remoteNetmask = IPAddress.Parse("0.0.0.0");
+			var localIP = IPAddress.Parse(Settings.Default.IPAddress);
+			var remoteNetwork = IPAddress.Parse(Settings.Default.RemoteNetwork);
+			var remoteNetmask = IPAddress.Parse(Settings.Default.RemoteNetmask);
 			tunTapDevice.ConfigTun(localIP, remoteNetwork, remoteNetmask);
 
-			var adapterNetmask = IPAddress.Parse("255.255.255.0");
-			var dhcpServerAddr = IPAddress.Parse("10.3.0.255");
-			var dhcpLeaseTime = 86400 * 365; // one year
+			var adapterNetmask = IPAddress.Parse(Settings.Default.DHCPNetmask);
+			var dhcpServerAddr = IPAddress.Parse(Settings.Default.DHCPServer);
+			var dhcpLeaseTime = Settings.Default.DHCPLeaseTime;
 			tunTapDevice.ConfigDhcpMasq(localIP, adapterNetmask, dhcpServerAddr, dhcpLeaseTime);
 
 			tunTapDevice.SetMediaStatus(true);
