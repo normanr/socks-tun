@@ -231,6 +231,7 @@ namespace SocksTun
 			public byte[] adapterNetmask;
 			[MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
 			public byte[] dhcpServerAddr;
+			[MarshalAs(UnmanagedType.U4)]
 			public int dhcpLeaseTime;
 		}
 

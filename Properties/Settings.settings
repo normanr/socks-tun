@@ -1,0 +1,30 @@
+﻿<?xml version='1.0' encoding='utf-8'?>
+<SettingsFile xmlns="http://schemas.microsoft.com/VisualStudio/2004/01/settings" CurrentProfile="(Default)" GeneratedClassNamespace="SocksTun.Properties" GeneratedClassName="Settings">
+  <Profiles />
+  <Settings>
+    <Setting Name="IPAddress" Type="System.String" Scope="Application">
+      <Value Profile="(Default)">10.3.0.1</Value>
+    </Setting>
+    <Setting Name="DHCPNetmask" Type="System.String" Scope="Application">
+      <Value Profile="(Default)">255.255.255.0</Value>
+    </Setting>
+    <Setting Name="DHCPServer" Type="System.String" Scope="Application">
+      <Value Profile="(Default)">10.3.0.254</Value>
+    </Setting>
+    <Setting Name="RemoteNetwork" Type="System.String" Scope="Application">
+      <Value Profile="(Default)">0.0.0.0</Value>
+    </Setting>
+    <Setting Name="RemoteNetmask" Type="System.String" Scope="Application">
+      <Value Profile="(Default)">0.0.0.0</Value>
+    </Setting>
+    <Setting Name="SocksPort" Type="System.Int32" Scope="Application">
+      <Value Profile="(Default)">59000</Value>
+    </Setting>
+    <Setting Name="LogPort" Type="System.Int32" Scope="Application">
+      <Value Profile="(Default)">58000</Value>
+    </Setting>
+    <Setting Name="DHCPLeaseTime" Type="System.Int32" Scope="Application">
+      <Value Profile="(Default)">31536000</Value>
+    </Setting>
+  </Settings>
+</SettingsFile>

@@ -82,7 +82,7 @@ namespace IpHlpApidotnet
 		{
 			try
 			{
-				if (HostAddress.Address.Address == 0)//ToString() == "0.0.0.0")
+				if (HostAddress.Address.Equals(IPAddress.Any))
 				{
 					if (HostAddress.Port > 0)
 						return LocalHostName + ":" + HostAddress.Port.ToString();
