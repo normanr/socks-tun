@@ -34,7 +34,6 @@
 //===============================================
 
 using System;
-using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
@@ -251,6 +250,21 @@ namespace SocksTun
 			return DeviceIoControl<byte>(TAP_IOCTL_CONFIG_DHCP_MASQ, data);
 		}
 
+		public byte ConfigDhcpSetOptions(params DhcpOption[] dhcpOptions)
+		{
+			using (var buffer = new MemoryStream())
+			{
+				using (var writer = new BinaryWriter(buffer))
+				{
+					foreach (var dhcpOption in dhcpOptions)
+					{
+						dhcpOption.Write(writer);
+					}
+				}
+				return DeviceIoControl<byte>(TAP_IOCTL_CONFIG_DHCP_SET_OPT, buffer.ToArray());
+			}
+		}
+
 		private struct GetLogLineResult
 		{
 			[MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)]
@@ -266,14 +280,17 @@ namespace SocksTun
 
 		private T DeviceIoControl<T>(uint ioctl, object data)
 		{
-			var nInBufferSize = data != null ? Marshal.SizeOf(data) : 0;
+			var nInBufferSize = data != null ? data is byte[] ? ((byte[])data).Length : Marshal.SizeOf(data) : 0;
 			var pInBuffer = Marshal.AllocHGlobal(nInBufferSize);
 			var nOutBufferSize = Marshal.SizeOf(typeof(T));
 			var pOutBuffer = Marshal.AllocHGlobal(nOutBufferSize);
 			try
 			{
 				if (data != null)
-					Marshal.StructureToPtr(data, pInBuffer, true);
+					if (data is byte[])
+						Marshal.Copy((byte[])data, 0, pInBuffer, nInBufferSize);
+					else
+						Marshal.StructureToPtr(data, pInBuffer, true);
 				int len;
 				if (!Win32Api.DeviceIoControl(Stream.SafeFileHandle, ioctl, pInBuffer, (uint)nInBufferSize, pOutBuffer, (uint)nOutBufferSize, out len, IntPtr.Zero))
 					throw new Win32Exception(Marshal.GetLastWin32Error());
@@ -322,6 +339,109 @@ namespace SocksTun
 			if (regConnection == null) return string.Empty;
 			var id = regConnection.GetValue("Name");
 			return id != null ? id.ToString() : string.Empty;
+		}
+	}
+
+	public class DhcpOption
+	{
+		public class DhcpOptionIPAddresses : DhcpOption { public DhcpOptionIPAddresses(byte type, IPAddress[] data) : base(type, data) { } }
+
+		public class Routers : DhcpOptionIPAddresses { public Routers(params IPAddress[] data) : base(3, data) { } };
+		public class DNSServers : DhcpOptionIPAddresses { public DNSServers(params IPAddress[] data) : base(6, data) { } };
+		public class Domain : DhcpOption { public Domain(string data) : base(15, data) { } };
+		public class NTPServers : DhcpOptionIPAddresses { public NTPServers(params IPAddress[] data) : base(42, data) { } };
+		public class VendorOptions : DhcpOption { public VendorOptions(params DhcpVendorOption[] data) : base(43, data) { } };
+		public class WINSServers : DhcpOptionIPAddresses { public WINSServers(params IPAddress[] data) : base(44, data) { } };
+		public class NetBIOSNodeType : DhcpOption { public NetBIOSNodeType(byte data) : base(46, data) { } };
+		public class NetBIOSScope : DhcpOption { public NetBIOSScope(string data) : base(47, data) { } };
+
+		private readonly byte type;
+		private readonly object data;
+
+		public DhcpOption(byte type, object data)
+		{
+			this.type = type;
+			this.data = data;
+		}
+
+		internal void Write(BinaryWriter writer)
+		{
+			WriteBuffer(type, data, writer);
+		}
+
+		internal static void WriteBuffer(byte type, object data, BinaryWriter writer)
+		{
+			byte[] buffer;
+			if (data is string)
+			{
+				buffer = Encoding.ASCII.GetBytes((string)data);
+			}
+			else if (data is byte)
+			{
+				buffer = new[] { (byte)data };
+			}
+			else if (data is int)
+			{
+				buffer = BitConverter.GetBytes(IPAddress.HostToNetworkOrder((int)data));
+			}
+			else if (data is byte[])
+			{
+				buffer = (byte[])data;
+			}
+			else if (data is IPAddress[])
+			{
+				var ipAddresses = (IPAddress[])data;
+				buffer = new byte[ipAddresses.Length * 4];
+				for (var i = 0; i < ipAddresses.Length; i++)
+				{
+					var bytes = ipAddresses[i].GetAddressBytes();
+					if (bytes.Length != 4)
+						throw new InvalidDataException(string.Format("IpAddress '{0}' must be 4 bytes", ipAddresses[i]));
+					bytes.CopyTo(buffer, i * 4);
+				}
+			}
+			else if (data is DhcpVendorOption[])
+			{
+				using (var vendorBuffer = new MemoryStream())
+				{
+					using (var vendorWriter = new BinaryWriter(vendorBuffer))
+					{
+						foreach (var dhcpVendorOption in (DhcpVendorOption[])data)
+						{
+							dhcpVendorOption.Write(vendorWriter);
+						}
+					}
+					buffer = vendorBuffer.ToArray();
+				}
+			}
+			else
+			{
+				throw new InvalidDataException("Unknown DHCP option type: " + data.GetType().Name);
+			}
+			if (buffer.Length < 1 || buffer.Length > 255)
+				throw new InvalidDataException("DhcpOption must be > 0 bytes and <= 255 bytes");
+			writer.Write(type);
+			writer.Write((byte)buffer.Length);
+			writer.Write(buffer);
+		}
+	}
+
+	public class DhcpVendorOption
+	{
+		public class NetBIOSOverTCP : DhcpVendorOption { public NetBIOSOverTCP(int data) : base(1, data) { } };
+
+		private readonly byte type;
+		private readonly object data;
+
+		public DhcpVendorOption(byte type, object data)
+		{
+			this.type = type;
+			this.data = data;
+		}
+
+		internal void Write(BinaryWriter writer)
+		{
+			DhcpOption.WriteBuffer(type, data, writer);
 		}
 	}
 }
