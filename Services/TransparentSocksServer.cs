@@ -12,14 +12,16 @@ namespace SocksTun.Services
 	class TransparentSocksServer : IService
 	{
 		private readonly DebugWriter debug;
-		private readonly ConnectionTracker connectionTracker;
+		private readonly IDictionary<string, IService> services;
 		private readonly TcpListener transparentSocksServer;
+
+		private ConnectionTracker connectionTracker;
 		public int Port { get; private set; }
 
 		public TransparentSocksServer(DebugWriter debug, IDictionary<string, IService> services)
 		{
 			this.debug = debug;
-			connectionTracker = (ConnectionTracker)services["connectionTracker"];
+			this.services = services;
 
 			transparentSocksServer = new TcpListener(IPAddress.Any, Settings.Default.SocksPort);
 			transparentSocksServer.Server.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, 1);
@@ -27,6 +29,8 @@ namespace SocksTun.Services
 
 		public void Start()
 		{
+			connectionTracker = (ConnectionTracker)services["connectionTracker"];
+
 			transparentSocksServer.Start();
 			Port = ((IPEndPoint) transparentSocksServer.LocalEndpoint).Port;
 			debug.Log(0, "TransparentSocksPort = " + Port);
@@ -35,6 +39,7 @@ namespace SocksTun.Services
 
 		public void Stop()
 		{
+			// TODO: This should close established connections
 		}
 
 		private void NewTransparentSocksConnection(IAsyncResult ar)

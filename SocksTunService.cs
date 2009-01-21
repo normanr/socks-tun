@@ -40,21 +40,21 @@ namespace SocksTun
 		protected override void OnStart(string[] args)
 		{
 			services["connectionTracker"] = new ConnectionTracker(debug, services);
-			services["transparentSocksServer"] = new TransparentSocksServer(debug, services);
 			services["natter"] = new Natter(debug, services);
 			services["logServer"] = new LogServer(debug, services);
+			services["transparentSocksServer"] = new TransparentSocksServer(debug, services);
 
 			services["connectionTracker"].Start();
-			services["transparentSocksServer"].Start();
 			services["natter"].Start();
 			services["logServer"].Start();
+			services["transparentSocksServer"].Start();
 		}
 
 		protected override void OnStop()
 		{
+			services["transparentSocksServer"].Stop();
 			services["logServer"].Stop();
 			services["natter"].Stop();
-			services["transparentSocksServer"].Stop();
 			services["connectionTracker"].Stop();
 		}
 	}

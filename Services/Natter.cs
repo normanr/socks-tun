@@ -17,18 +17,18 @@ namespace SocksTun.Services
 		private readonly TunTapDevice tunTapDevice;
 		private readonly FileStream tap;
 		private readonly DebugWriter debug;
-		private readonly ConnectionTracker connectionTracker;
-		private readonly TransparentSocksServer transparentSocksServer;
+		private readonly IDictionary<string, IService> services;
 		private readonly byte[] buf = new byte[bufferSize];
 		private readonly EventWaitHandle stoppedEvent = new ManualResetEvent(false);
 
+		private ConnectionTracker connectionTracker;
+		private TransparentSocksServer transparentSocksServer;
 		private bool running;
 
 		public Natter(DebugWriter debug, IDictionary<string, IService> services)
 		{
 			this.debug = debug;
-			connectionTracker = (ConnectionTracker)services["connectionTracker"];
-			transparentSocksServer = (TransparentSocksServer)services["transparentSocksServer"];
+			this.services = services;
 
 			tunTapDevice = new TunTapDevice(Settings.Default.TunTapDevice);
 			tap = tunTapDevice.Stream;
@@ -36,6 +36,9 @@ namespace SocksTun.Services
 
 		public void Start()
 		{
+			connectionTracker = (ConnectionTracker)services["connectionTracker"];
+			transparentSocksServer = (TransparentSocksServer)services["transparentSocksServer"];
+
 			debug.Log(0, "Name = " + tunTapDevice.Name);
 			debug.Log(0, "Guid = " + tunTapDevice.Guid.ToString("B"));
 			debug.Log(0, "Mac = " + tunTapDevice.GetMac());

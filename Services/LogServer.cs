@@ -11,15 +11,16 @@ namespace SocksTun.Services
 	class LogServer : IService
 	{
 		private readonly DebugWriter debug;
-		private readonly ConnectionTracker connectionTracker;
-		private readonly Natter natter;
+		private readonly IDictionary<string, IService> services;
 		private readonly TcpListener logServer;
+
+		private ConnectionTracker connectionTracker;
+		private Natter natter;
 
 		public LogServer(DebugWriter debug, IDictionary<string, IService> services)
 		{
 			this.debug = debug;
-			connectionTracker = (ConnectionTracker)services["connectionTracker"];
-			natter = (Natter)services["natter"];
+			this.services = services;
 
 			logServer = new TcpListener(IPAddress.Loopback, Settings.Default.LogPort);
 			logServer.Server.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, 1);
@@ -27,6 +28,9 @@ namespace SocksTun.Services
 
 		public void Start()
 		{
+			connectionTracker = (ConnectionTracker)services["connectionTracker"];
+			natter = (Natter)services["natter"];
+
 			logServer.Start();
 			debug.Log(0, "LogPort = " + ((IPEndPoint)logServer.LocalEndpoint).Port);
 			logServer.BeginAcceptTcpClient(NewLogConnection, null);
@@ -34,6 +38,7 @@ namespace SocksTun.Services
 
 		public void Stop()
 		{
+			// TODO: This should close established connections
 		}
 
 		private void NewLogConnection(IAsyncResult ar)
