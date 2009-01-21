@@ -52,14 +52,15 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="BlockingQueue.cs" />
-    <Compile Include="ConnectionTracker.cs" />
+    <Compile Include="Services\ConnectionTracker.cs" />
     <Compile Include="DebugWriter.cs" />
     <Compile Include="IpHlpApi\IPHlpAPI32.cs" />
     <Compile Include="IpHlpApi\TCPUDPConnection.cs" />
     <Compile Include="IpHlpApi\TCPUDPConnections.cs" />
     <Compile Include="IpHlpApi\Utils.cs" />
-    <Compile Include="LogConnection.cs" />
-    <Compile Include="Natter.cs" />
+    <Compile Include="Services\IService.cs" />
+    <Compile Include="Services\LogConnection.cs" />
+    <Compile Include="Services\Natter.cs" />
     <Compile Include="ProjectInstaller.cs">
       <SubType>Component</SubType>
     </Compile>
@@ -81,6 +82,8 @@
     <Compile Include="ProxySocket\Socks5Handler.cs" />
     <Compile Include="ProxySocket\SocksHandler.cs" />
     <Compile Include="ProxySocket\TestApp.cs" />
+    <Compile Include="Services\LogServer.cs" />
+    <Compile Include="Services\TransparentSocksServer.cs" />
     <Compile Include="SocketPump.cs" />
     <Compile Include="SocksTunService.cs">
       <SubType>Component</SubType>
@@ -90,7 +93,7 @@
     </Compile>
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="TransparentSocksConnection.cs" />
+    <Compile Include="Services\TransparentSocksConnection.cs" />
     <Compile Include="TunTapDevice.cs" />
     <Compile Include="Win32Api.cs" />
   </ItemGroup>

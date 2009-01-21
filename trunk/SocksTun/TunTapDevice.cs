@@ -322,7 +322,7 @@ namespace SocksTun
 				var id = regAdapter.GetValue("ComponentId");
 				if (id == null || id.ToString() != TAP_COMPONENT_ID) continue;
 				devGuid = regAdapter.GetValue("NetCfgInstanceId").ToString();
-				if (deviceName == null ||
+				if (String.IsNullOrEmpty(deviceName) ||
 					devGuid == deviceName ||
 					GetHumanName(devGuid) == deviceName) break;
 			}

@@ -6,9 +6,9 @@ using System.Text;
 using System.Timers;
 using IpHlpApidotnet;
 
-namespace SocksTun
+namespace SocksTun.Services
 {
-	class ConnectionTracker : IDisposable
+	class ConnectionTracker : IService
 	{
 		public readonly Dictionary<EndPoint, int> mappings = new Dictionary<EndPoint, int>();
 
@@ -16,14 +16,18 @@ namespace SocksTun
 		private readonly Queue<KeyValuePair<DateTime, EndPoint>> mappingCleanUp = new Queue<KeyValuePair<DateTime, EndPoint>>();
 		private readonly TCPUDPConnections tcpUdpConnections = new TCPUDPConnections { FetchTcpConnections = true };
 
-		public ConnectionTracker()
+		public ConnectionTracker(DebugWriter debug, IDictionary<string, IService> services)
 		{
 			mappingCleanupTimer = new Timer { Interval = 10000 };
 			mappingCleanupTimer.Elapsed += mappingCleanupTimer_Elapsed;
+		}
+
+		public void Start()
+		{
 			mappingCleanupTimer.Start();
 		}
 
-		public void Dispose()
+		public void Stop()
 		{
 			mappingCleanupTimer.Stop();
 		}

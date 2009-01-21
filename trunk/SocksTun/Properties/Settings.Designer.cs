@@ -94,5 +94,23 @@ namespace SocksTun.Properties {
                 return ((int)(this["DHCPLeaseTime"]));
             }
         }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string Services {
+            get {
+                return ((string)(this["Services"]));
+            }
+        }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string TunTapDevice {
+            get {
+                return ((string)(this["TunTapDevice"]));
+            }
+        }
     }
 }

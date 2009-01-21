@@ -6,25 +6,25 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 
-namespace SocksTun
+namespace SocksTun.Services
 {
 	class LogConnection
 	{
 		private readonly TcpClient client;
 		private readonly DebugWriter debug;
 		private readonly ConnectionTracker connectionTracker;
-		private readonly TunTapDevice tunTapDevice;
+		private readonly Natter natter;
 		private readonly NetworkStream stream;
 		private readonly byte[] buffer = new byte[0x1000];
 
 		private bool connected;
 
-		public LogConnection(TcpClient client, DebugWriter debug, ConnectionTracker connectionTracker, TunTapDevice tunTapDevice)
+		public LogConnection(TcpClient client, DebugWriter debug, ConnectionTracker connectionTracker, Natter natter)
 		{
 			this.client = client;
 			this.debug = debug;
 			this.connectionTracker = connectionTracker;
-			this.tunTapDevice = tunTapDevice;
+			this.natter = natter;
 			stream = client.GetStream();
 		}
 
@@ -62,7 +62,7 @@ namespace SocksTun
 				client.Client.RemoteEndPoint);
 
 			debug.Log(1, logMessage, "connected to");
-			debug.Log(1, tunTapDevice.GetInfo());
+			debug.Log(1, natter.GetStatus());
 
 			try
 			{
