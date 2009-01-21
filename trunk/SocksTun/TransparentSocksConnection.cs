@@ -56,8 +56,7 @@ namespace SocksTun
 				}
 				catch (Exception ex)
 				{
-					client.Send(Encoding.ASCII.GetBytes(ex.ToString()));
-					debug.Log(1, logMessage + ": {1}", "failed", ex);
+					debug.Log(1, logMessage + ": {1}", "failed", ex.Message);
 				}
 
 				connectionTracker.QueueForCleanUp(remoteEndPoint);
