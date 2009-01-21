@@ -26,5 +26,11 @@
     <Setting Name="DHCPLeaseTime" Type="System.Int32" Scope="Application">
       <Value Profile="(Default)">31536000</Value>
     </Setting>
+    <Setting Name="Services" Type="System.String" Scope="Application">
+      <Value Profile="(Default)" />
+    </Setting>
+    <Setting Name="TunTapDevice" Type="System.String" Scope="Application">
+      <Value Profile="(Default)" />
+    </Setting>
   </Settings>
 </SettingsFile>

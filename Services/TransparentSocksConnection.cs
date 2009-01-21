@@ -6,7 +6,7 @@ using System.Net.Sockets;
 using System.Text;
 using Org.Mentalis.Network.ProxySocket;
 
-namespace SocksTun
+namespace SocksTun.Services
 {
 	class TransparentSocksConnection
 	{
