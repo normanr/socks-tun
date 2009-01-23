@@ -19,8 +19,8 @@ namespace SocksTun
 		private const string dateTimeFormat = "yyyy'-'MM'-'dd' 'HH':'mm':'ss";
 		public void Log(int level, string message)
 		{
-			if (level >= LogLevel) return;
-			var line = DateTime.Now.ToString(dateTimeFormat) + ": " + message;
+			if (level > LogLevel) return;
+			var line = DateTime.Now.ToString(dateTimeFormat) + " [" + level + "]: " + message;
 			if (Writer != null) Writer.WriteLine(line);
 			if (level < 1)
 			{
@@ -60,10 +60,10 @@ namespace SocksTun
 					case ProtocolType.Udp:
 						var sourcePort = IPAddress.NetworkToHostOrder(BitConverter.ToInt16(buf, headerLength + 0)) & 0xffff;
 						var destinationPort = IPAddress.NetworkToHostOrder(BitConverter.ToInt16(buf, headerLength + 2)) & 0xffff;
-						Log(2, "{0}: {1}:{3} -> {2}:{4}", protocol, source, destination, sourcePort, destinationPort);
+						Log(5, "{0}: {1}:{3} -> {2}:{4}", protocol, source, destination, sourcePort, destinationPort);
 						break;
 					default:
-						Log(2, "{0}: {1} -> {2}", protocol, source, destination);
+						Log(5, "{0}: {1} -> {2}", protocol, source, destination);
 						break;
 				}
 			}
@@ -92,7 +92,7 @@ namespace SocksTun
 				}
 				sb.AppendLine();
 			}
-			Log(3, sb.ToString());
+			Log(9, sb.ToString());
 		}
 	}
 }

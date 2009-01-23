@@ -29,11 +29,12 @@ namespace SocksTun.Services
 		{
 			var localEndPoint = (IPEndPoint)client.LocalEndPoint;
 			var remoteEndPoint = (IPEndPoint)client.RemoteEndPoint;
+			var connection = connectionTracker[new Connection(ProtocolType.Tcp, localEndPoint, remoteEndPoint)].Mirror;
 
-			if (connectionTracker.mappings.ContainsKey(remoteEndPoint))
+			if (connection != null)
 			{
-				var initialEndPoint = new IPEndPoint(localEndPoint.Address, remoteEndPoint.Port);
-				var requestedEndPoint = new IPEndPoint(remoteEndPoint.Address, connectionTracker.mappings[remoteEndPoint]);
+				var initialEndPoint = connection.Source;
+				var requestedEndPoint = connection.Destination;
 				var tcpConnection = connectionTracker.GetTCPConnection(initialEndPoint, requestedEndPoint);
 
 				var logMessage = string.Format("{0}[{1}] {2} {{0}} connection to {3}",
@@ -59,7 +60,7 @@ namespace SocksTun.Services
 					debug.Log(1, logMessage + ": {1}", "failed", ex.Message);
 				}
 
-				connectionTracker.QueueForCleanUp(remoteEndPoint);
+				connectionTracker.QueueForCleanUp(connection);
 			}
 			else
 			{

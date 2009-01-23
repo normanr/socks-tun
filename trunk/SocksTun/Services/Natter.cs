@@ -123,22 +123,27 @@ namespace SocksTun.Services
 							var sourcePort = IPAddress.NetworkToHostOrder(BitConverter.ToInt16(buf, sourcePortOffset)) & 0xffff;
 							var destinationPort = IPAddress.NetworkToHostOrder(BitConverter.ToInt16(buf, destinationPortOffset)) & 0xffff;
 
-							// TODO: Make this configurable
-							if (sourcePort != transparentSocksServer.Port)
+							var sourceEndPoint = new IPEndPoint(source, sourcePort);
+							var destinationEndPoint = new IPEndPoint(destination, destinationPort);
+
+							var connection = new Connection(protocol, sourceEndPoint, destinationEndPoint);
+							var expect = connectionTracker[connection];
+
+							if (expect == null)
 							{
-								var endPoint = new IPEndPoint(destination, sourcePort);
-								if (!connectionTracker.mappings.ContainsKey(endPoint))
-									connectionTracker.mappings[endPoint] = destinationPort;
-								destinationPort = transparentSocksServer.Port;
+								expect = getExpectedConnection(protocol, sourceEndPoint, destinationEndPoint);
+								connectionTracker[connection] = expect;
+								debug.Log(3, "src={0} dst={1} [NEW] src={2} dst={3}", connection.Source, connection.Destination, expect.Source, expect.Destination);
 							}
 							else
 							{
-								var endPoint = new IPEndPoint(destination, destinationPort);
-								if (connectionTracker.mappings.ContainsKey(endPoint))
-									sourcePort = connectionTracker.mappings[endPoint];
+								debug.Log(4, "src={0} dst={1} [EST] src={2} dst={3}", connection.Source, connection.Destination, expect.Source, expect.Destination);
 							}
-							SetArray(buf, sourcePortOffset, BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)(sourcePort))));
-							SetArray(buf, destinationPortOffset, BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)(destinationPort))));
+							SetArray(buf, sourcePortOffset, BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)(expect.Source.Port))));
+							SetArray(buf, destinationPortOffset, BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)(expect.Destination.Port))));
+
+							SetArray(buf, sourceOffset, expect.Source.Address.GetAddressBytes());
+							SetArray(buf, destinationOffset, expect.Destination.Address.GetAddressBytes());
 
 							// Fix TCP checksum
 							SetArray(buf, tcpCheckSumOffset, BitConverter.GetBytes((ushort)0));
@@ -151,13 +156,16 @@ namespace SocksTun.Services
 							SetArray(buf, tcpCheckSumOffset, BitConverter.GetBytes(generateIPChecksum(pseudoPacket, pseudoPacket.Length)));
 						}
 						break;
+					default:
+						{
+							//
+							// Reverse IPv4 addresses and send back to tun
+							//
+							SetArray(buf, sourceOffset, destination.GetAddressBytes());
+							SetArray(buf, destinationOffset, source.GetAddressBytes());
+						}
+						break;
 				}
-
-				//
-				// Reverse IPv4 addresses and send back to tun
-				//
-				SetArray(buf, sourceOffset, destination.GetAddressBytes());
-				SetArray(buf, destinationOffset, source.GetAddressBytes());
 
 				// Fix IP checksum
 				SetArray(buf, checkSumOffset, BitConverter.GetBytes((ushort)0));
@@ -166,6 +174,14 @@ namespace SocksTun.Services
 				debug.LogBuffer("<", buf, bytesRead);
 				tap.Write(buf, 0, bytesRead);
 			}
+		}
+
+		private Connection getExpectedConnection(ProtocolType protocol, IPEndPoint sourceEndPoint, IPEndPoint destinationEndPoint)
+		{
+			// TODO: Make this configurable
+			var expectSourceEndPoint = new IPEndPoint(destinationEndPoint.Address, sourceEndPoint.Port);
+			var expectDestinationEndPoint = new IPEndPoint(sourceEndPoint.Address, transparentSocksServer.Port);
+			return new Connection(protocol, expectSourceEndPoint, expectDestinationEndPoint);
 		}
 
 		private static ushort generateIPChecksum(byte[] arBytes, int nSize)
