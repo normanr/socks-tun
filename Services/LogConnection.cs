@@ -62,7 +62,7 @@ namespace SocksTun.Services
 				client.Client.RemoteEndPoint);
 
 			debug.Log(1, logMessage, "connected to");
-			debug.Log(1, natter.GetStatus());
+			debug.Log(2, natter.GetStatus());
 
 			try
 			{
